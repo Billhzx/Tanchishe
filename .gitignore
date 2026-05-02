@@ -1,0 +1,48 @@
+# Python
+__pycache__/
+*.py[cod]
+*.pyo
+*.egg-info/
+dist/
+build/
+*.egg
+
+# Pygame
+*.pyc
+
+# Database (不要提交数据库文件，运行时自动生成)
+snake_db.sqlite
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# OS
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# Node (旧版报告系统依赖)
+node_modules/
+package-lock.json
+
+# Build artifacts
+Debug/
+*.obj
+*.pdb
+*.exe
+*.dsp
+*.dsw
+*.ncb
+*.opt
+*.plg
+*.sln
+
+# Unpacked docx
+unpacked/
+
+# Screenshots (可选，如需提交可删除此行)
+# screenshots/
