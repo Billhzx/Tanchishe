@@ -44,5 +44,21 @@ Debug/
 # Unpacked docx
 unpacked/
 
-# Screenshots (可选，如需提交可删除此行)
-# screenshots/
+# Screenshots
+screenshots/
+
+# Temp scripts
+_gen_plan.py
+_write_plan.py
+
+# Playwright CLI temp
+.playwright-cli/
+
+# HTML diagrams (not source code)
+flowchart.html
+hierarchy.html
+wbs.html
+
+# Report generation scripts & outputs
+gen_exp4_report.py
+实验四_结构化软件设计与实现.docx
