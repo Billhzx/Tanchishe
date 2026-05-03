@@ -118,7 +118,15 @@ STATE_GAMEOVER = 'gameover'
 STATE_LOG = 'log'
 
 # ==================== 音效文件路径 ====================
-SOUNDS_DIR = os.path.join(os.path.dirname(__file__), 'resources', 'sounds')
+import sys
+
+def _get_sounds_dir():
+    """获取音效目录（exe旁 或 源码目录）"""
+    if getattr(sys, 'frozen', False):
+        return os.path.join(os.path.dirname(sys.executable), 'sounds')
+    return os.path.join(os.path.dirname(__file__), 'resources', 'sounds')
+
+SOUNDS_DIR = _get_sounds_dir()
 SOUND_EAT = os.path.join(SOUNDS_DIR, 'eat.wav')
 SOUND_GOLD = os.path.join(SOUNDS_DIR, 'gold.wav')
 SOUND_GAMEOVER = os.path.join(SOUNDS_DIR, 'gameover.wav')

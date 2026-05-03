@@ -59,76 +59,24 @@ class Button:
         return self.rect.collidepoint(pos)
 
 
-class InputBox:
-    """输入框类"""
-
-    def __init__(self, x, y, width, height, placeholder="", hidden=False):
-        self.rect = pygame.Rect(x, y, width, height)
-        self.text = ""
-        self.placeholder = placeholder
-        self.active = False
-        self.font = None
-        self.hidden = hidden
-
-    def draw(self, surface):
-        color = COLOR_TEXT_HIGHLIGHT if self.active else COLOR_INPUT_BG
-        pygame.draw.rect(surface, color, self.rect, border_radius=6)
-        border_color = COLOR_TEXT_HIGHLIGHT if self.active else (80, 80, 100)
-        pygame.draw.rect(surface, border_color, self.rect, 2, border_radius=6)
-
-        # 密码模式显示星号
-        display_text = "*" * len(self.text) if self.hidden else self.text
-        placeholder_text = "password" if self.hidden else self.placeholder
-
-        if display_text:
-            text_surf = self.font.render(display_text, True, COLOR_TEXT)
-        else:
-            text_surf = self.font.render(placeholder_text, True, (120, 120, 140))
-        surface.blit(text_surf, (self.rect.x + 10, self.rect.y + 8))
-
-        # 光标闪烁
-        if self.active and display_text:
-            cursor_x = self.rect.x + 10 + self.font.size(display_text)[0]
-            if pygame.time.get_ticks() % 1000 < 500:
-                pygame.draw.line(surface, COLOR_TEXT,
-                                 (cursor_x + 2, self.rect.y + 6),
-                                 (cursor_x + 2, self.rect.y + self.rect.height - 6), 2)
-
-    def activate(self):
-        self.active = True
-        pygame.key.start_text_input()
-
-    def deactivate(self):
-        self.active = False
-        pygame.key.stop_text_input()
-
-    def handle_event(self, event):
-        if event.type == pygame.MOUSEBUTTONDOWN:
-            if self.rect.collidepoint(event.pos):
-                self.activate()
-            else:
-                self.deactivate()
-
-        if event.type == pygame.TEXTINPUT and self.active:
-            self.text += event.text
-
-        if event.type == pygame.KEYDOWN and self.active:
-            if event.key == pygame.K_BACKSPACE:
-                self.text = self.text[:-1]
-            elif event.key == pygame.K_RETURN:
-                return True
-
-
 class SnakeGame:
     """贪吃蛇游戏主类 V4"""
 
-    def __init__(self):
+    def __init__(self, player):
         pygame.init()
         pygame.display.set_caption("贪吃蛇游戏 V4")
 
         # 创建窗口
         self.screen = pygame.display.set_mode((WINDOW_WIDTH, WINDOW_HEIGHT))
         self.clock = pygame.time.Clock()
+
+        # 修复焦点问题：tkinter 关闭后 Pygame 窗口可能未获得键盘焦点
+        try:
+            import ctypes
+            hwnd = pygame.display.get_wm_info()['window']
+            ctypes.windll.user32.SetForegroundWindow(hwnd)
+        except Exception:
+            pass
 
         # 初始化字体
         self.fonts = self._init_fonts()
@@ -141,12 +89,12 @@ class SnakeGame:
         self.sound = SoundManager()
         self.sound.init()
 
-        # 初始化游戏对象
-        self.player = Player()
+        # 玩家（从 tkinter 登录对话框传入）
+        self.player = player
         self.game_log = GameLog()
 
         # 游戏状态
-        self.state = STATE_LOGIN
+        self.state = STATE_MENU
 
         # 游戏数据
         self.snake = []
@@ -172,27 +120,6 @@ class SnakeGame:
 
         # 分数飘字效果
         self.score_popups = []
-
-        # 登录界面组件
-        self.login_input_username = InputBox(300, 250, 200, 40, "请输入用户名")
-        self.login_input_username.font = self.fonts['info']
-        self.login_input_password = InputBox(300, 320, 200, 40, "请输入密码", hidden=True)
-        self.login_input_password.font = self.fonts['info']
-
-        # 注册界面组件
-        self.reg_input_username = InputBox(300, 230, 200, 40, "请输入用户名")
-        self.reg_input_username.font = self.fonts['info']
-        self.reg_input_password = InputBox(300, 290, 200, 40, "请输入密码", hidden=True)
-        self.reg_input_password.font = self.fonts['info']
-        self.reg_input_password_confirm = InputBox(300, 350, 200, 40, "请确认密码", hidden=True)
-        self.reg_input_password_confirm.font = self.fonts['info']
-
-        # 按钮
-        self.login_btn = Button(300, 400, 200, 50, "登 录")
-        self.register_btn = Button(300, 470, 200, 50, "注 册")
-        self.reg_back_btn = Button(300, 420, 200, 50, "返 回")
-        self.reg_submit_btn = Button(300, 490, 200, 50, "确认注册",
-                                     color_normal=COLOR_BTN_GREEN, color_hover=COLOR_BTN_GREEN_HOVER)
 
         # 主菜单按钮
         self.menu_btns = [
@@ -234,7 +161,12 @@ class SnakeGame:
 
     def _init_fonts(self):
         """初始化字体"""
-        font_path = os.path.join(os.path.dirname(__file__), 'game', 'resources', 'msyh.ttc')
+        # PyInstaller 打包后资源在 sys._MEIPASS 临时目录中
+        if getattr(sys, 'frozen', False):
+            base_path = sys._MEIPASS
+        else:
+            base_path = os.path.dirname(__file__)
+        font_path = os.path.join(base_path, 'game', 'resources', 'msyh.ttc')
         fonts = {}
         for size_key, size in [('title', FONT_SIZE_TITLE), ('menu', FONT_SIZE_MENU),
                                 ('info', FONT_SIZE_INFO), ('hint', FONT_SIZE_HINT)]:
@@ -323,116 +255,6 @@ class SnakeGame:
             surf = self.fonts['info'].render(sp['score'], True, sp['color'])
             self.screen.blit(surf, (sp['x'], int(sp['y'])))
 
-    # ==================== 登录/注册界面 ====================
-
-    def draw_login_screen(self):
-        """绘制登录界面"""
-        self.screen.fill(COLOR_BG)
-
-        # 装饰：蛇形图案
-        for i in range(5):
-            x = 200 + i * 25
-            y = 40 + abs(i - 2) * 8
-            color = COLOR_SNAKE_HEAD if i == 0 else (0, 180 - i * 30, 80 - i * 15)
-            pygame.draw.circle(self.screen, color, (x, y), 8)
-
-        self.draw_text_center("贪吃蛇游戏", 70, 'title', COLOR_TEXT_HIGHLIGHT)
-        self.draw_text_center("用户登录", 140, 'menu')
-
-        self.login_input_username.draw(self.screen)
-        self.login_input_password.draw(self.screen)
-
-        self.login_btn.draw(self.screen, self.fonts)
-        self.register_btn.draw(self.screen, self.fonts)
-
-        if self.message:
-            self.draw_text(self.message, (250, 480), 'hint', COLOR_TEXT_RED)
-
-    def draw_register_screen(self):
-        """绘制注册界面"""
-        self.screen.fill(COLOR_BG)
-        self.draw_text_center("用户注册", 100, 'menu')
-
-        self.reg_input_username.draw(self.screen)
-        self.reg_input_password.draw(self.screen)
-        self.reg_input_password_confirm.draw(self.screen)
-
-        self.reg_submit_btn.draw(self.screen, self.fonts)
-        self.reg_back_btn.draw(self.screen, self.fonts)
-
-        if self.message:
-            self.draw_text(self.message, (250, 450), 'hint', COLOR_TEXT_RED)
-
-    def handle_login_input(self, event):
-        """处理登录界面输入"""
-        self.login_input_username.handle_event(event)
-        self.login_input_password.handle_event(event)
-
-        if event.type == pygame.MOUSEBUTTONDOWN:
-            pos = event.pos
-            if self.login_btn.is_clicked(pos):
-                self.sound.play('click')
-                success, msg = self.player.login(
-                    self.login_input_username.text,
-                    self.login_input_password.text
-                )
-                if success:
-                    self.login_input_username.deactivate()
-                    self.login_input_password.deactivate()
-                    self.state = STATE_MENU
-                    self.show_message("登录成功！")
-                else:
-                    self.show_message(msg)
-
-            elif self.register_btn.is_clicked(pos):
-                self.sound.play('click')
-                self.login_input_username.deactivate()
-                self.login_input_password.deactivate()
-                self.state = STATE_REGISTER
-                self.login_input_username.text = ""
-                self.login_input_password.text = ""
-                self.message = ""
-
-    def handle_register_input(self, event):
-        """处理注册界面输入"""
-        self.reg_input_username.handle_event(event)
-        self.reg_input_password.handle_event(event)
-        self.reg_input_password_confirm.handle_event(event)
-
-        if event.type == pygame.MOUSEBUTTONDOWN:
-            pos = event.pos
-            if self.reg_submit_btn.is_clicked(pos):
-                self.sound.play('click')
-                username = self.reg_input_username.text
-                password = self.reg_input_password.text
-                confirm = self.reg_input_password_confirm.text
-
-                if not username or not password:
-                    self.show_message("用户名和密码不能为空")
-                elif password != confirm:
-                    self.show_message("两次密码不一致")
-                else:
-                    success, msg = self.player.register(username, password)
-                    if success:
-                        self.reg_input_username.deactivate()
-                        self.reg_input_password.deactivate()
-                        self.reg_input_password_confirm.deactivate()
-                        self.state = STATE_MENU
-                        self.show_message("注册成功！")
-                    else:
-                        self.show_message(msg)
-
-            elif self.reg_back_btn.is_clicked(pos):
-                self.sound.play('click')
-                self.reg_input_username.deactivate()
-                self.reg_input_password.deactivate()
-                self.reg_input_password_confirm.deactivate()
-                self.state = STATE_LOGIN
-                self.reg_input_username.text = ""
-                self.reg_input_password.text = ""
-                self.reg_input_password_confirm.text = ""
-                self.message = ""
-
     # ==================== 主菜单界面 ====================
 
     def draw_menu_screen(self):
@@ -479,8 +301,8 @@ class SnakeGame:
                 self.log_entries = self.game_log.get_all_logs()
             elif self.menu_btns[2].is_clicked(pos):
                 self.sound.play('click')
-                self.player.logout()
-                self.state = STATE_LOGIN
+                pygame.quit()
+                sys.exit()
 
         if event.type == pygame.KEYDOWN:
             if event.key == pygame.K_m:
@@ -920,11 +742,7 @@ class SnakeGame:
                 btn.check_hover(pos)
 
             # 状态分发
-            if self.state == STATE_LOGIN:
-                self.handle_login_input(event)
-            elif self.state == STATE_REGISTER:
-                self.handle_register_input(event)
-            elif self.state == STATE_MENU:
+            if self.state == STATE_MENU:
                 self.handle_menu_input(event)
             elif self.state == STATE_DIFFICULTY:
                 self.handle_difficulty_input(event)
@@ -946,11 +764,7 @@ class SnakeGame:
 
     def get_current_buttons(self):
         """获取当前界面的按钮列表"""
-        if self.state == STATE_LOGIN:
-            return [self.login_btn, self.register_btn]
-        elif self.state == STATE_REGISTER:
-            return [self.reg_submit_btn, self.reg_back_btn]
-        elif self.state == STATE_MENU:
+        if self.state == STATE_MENU:
             return self.menu_btns
         elif self.state == STATE_DIFFICULTY:
             return self.difficulty_btns + [self.wall_mode_btn, self.diff_back_btn]
@@ -962,11 +776,7 @@ class SnakeGame:
 
     def draw(self):
         """绘制当前界面"""
-        if self.state == STATE_LOGIN:
-            self.draw_login_screen()
-        elif self.state == STATE_REGISTER:
-            self.draw_register_screen()
-        elif self.state == STATE_MENU:
+        if self.state == STATE_MENU:
             self.draw_menu_screen()
         elif self.state == STATE_DIFFICULTY:
             self.draw_difficulty_screen()
@@ -997,5 +807,11 @@ import math
 
 
 if __name__ == "__main__":
-    game = SnakeGame()
+    from login_dialog import show_login_dialog
+
+    player = show_login_dialog()
+    if player is None:
+        sys.exit()
+
+    game = SnakeGame(player)
     game.run()

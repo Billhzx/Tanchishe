@@ -6,8 +6,19 @@
 
 import sqlite3
 import os
+import sys
 
-DB_PATH = os.path.join(os.path.dirname(__file__), '..', 'snake_db.sqlite')
+
+def _get_app_dir():
+    """获取应用根目录（exe所在目录 或 项目根目录）"""
+    if getattr(sys, 'frozen', False):
+        # PyInstaller 打包后，exe 所在目录
+        return os.path.dirname(sys.executable)
+    return os.path.join(os.path.dirname(__file__), '..')
+
+
+APP_DIR = _get_app_dir()
+DB_PATH = os.path.join(APP_DIR, 'snake_db.sqlite')
 
 
 def get_connection():
@@ -58,7 +69,7 @@ def migrate_from_txt():
     cursor = conn.cursor()
 
     # 迁移用户数据
-    users_file = os.path.join(os.path.dirname(__file__), '..', 'users.txt')
+    users_file = os.path.join(APP_DIR, 'users.txt')
     if os.path.exists(users_file):
         with open(users_file, 'r', encoding='utf-8') as f:
             for line in f:
@@ -76,7 +87,7 @@ def migrate_from_txt():
                         continue
 
     # 迁移日志数据
-    log_file = os.path.join(os.path.dirname(__file__), '..', 'gamelog.txt')
+    log_file = os.path.join(APP_DIR, 'gamelog.txt')
     if os.path.exists(log_file):
         with open(log_file, 'r', encoding='utf-8') as f:
             for line in f:
